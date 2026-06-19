@@ -620,6 +620,7 @@ function renderProdutosList() {
       <div class="produto-acoes">
         <button class="btn-secondary btn-sm" data-action="editar" data-id="${p.id}">✏️ Editar</button>
         <button class="btn-secondary btn-sm" data-action="estoque" data-id="${p.id}">📦 Estoque</button>
+        <button class="btn-secondary btn-sm" data-action="excluir" data-id="${p.id}" style="color:var(--red);border-color:var(--red)">🗑️ Excluir</button>
       </div>
     </div>`;
   }).join('');
@@ -630,6 +631,7 @@ document.getElementById('lista-produtos')?.addEventListener('click', e => {
   const id = btn.dataset.id;
   if (btn.dataset.action === 'editar') abrirModalProduto(id);
   if (btn.dataset.action === 'estoque') abrirModalEstoque(id);
+  if (btn.dataset.action === 'excluir') excluirProduto(id);
 });
 
 document.getElementById('busca-produto-lista')?.addEventListener('input', renderProdutosList);
@@ -673,6 +675,15 @@ document.getElementById('form-produto')?.addEventListener('submit', async e => {
   showToast(id ? 'Produto atualizado!' : 'Produto criado!', 'success');
   await loadProdutosList();
 });
+
+async function excluirProduto(id) {
+  const p = products.find(x => x.id === id); if (!p) return;
+  if (!confirm(`Excluir "${p.nome}"? Esta ação não pode ser desfeita.`)) return;
+  const { error } = await client.from('produtos').delete().eq('id', id);
+  if (error) { console.error(error); return showToast('Erro ao excluir produto', 'error'); }
+  showToast('Produto excluído!', 'success');
+  await loadProdutosList();
+}
 
 // Modal Ajuste de Estoque
 function abrirModalEstoque(id) {
