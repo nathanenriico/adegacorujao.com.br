@@ -393,3 +393,10 @@ button,
 .total-entrada-row {
   gap: 10px;
 }
+
+/* ===== TABELA DE PRODUTOS ===== */
+.tabela-produtos { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tabela-produtos th { background: var(--bg3); color: var(--text2); text-align: left; padding: 10px 12px; font-size: 12px; text-transform: uppercase; letter-spacing: .4px; border-bottom: 1px solid var(--border); }
+.tabela-produtos td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.tabela-produtos tr:last-child td { border-bottom: none; }
+.tabela-produtos tr:hover td { background: var(--bg3); }

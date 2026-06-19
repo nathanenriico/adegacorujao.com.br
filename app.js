@@ -580,6 +580,14 @@ async function loadHistEntradas() {
       </div>
     </div>`).join('');
 }
+let prodViewMode = 'cards';
+
+document.getElementById('btn-toggle-view')?.addEventListener('click', () => {
+  prodViewMode = prodViewMode === 'cards' ? 'tabela' : 'cards';
+  document.getElementById('btn-toggle-view').textContent = prodViewMode === 'cards' ? '📋 Tabela' : '📦 Cards';
+  renderProdutosList();
+});
+
 let prodFilterCat = '';
 
 async function loadProdutosList() {
@@ -599,6 +607,48 @@ function renderProdutosList() {
     p.nome.toLowerCase().includes(q) && (!cat || p.categoria === cat)
   );
   if (!filtered.length) { lista.innerHTML = '<div class="empty-state">Nenhum produto encontrado.</div>'; return; }
+
+  if (prodViewMode === 'tabela') {
+    lista.innerHTML = `
+      <div style="overflow-x:auto">
+        <table class="tabela-produtos">
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Categoria</th>
+              <th>Venda</th>
+              <th>Custo</th>
+              <th>Estoque</th>
+              <th>Mínimo</th>
+              <th>Status</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filtered.map(p => {
+              const estoqueClass = p.estoque <= 0 ? 'estoque-zero' : p.estoque <= p.estoque_minimo ? 'estoque-baixo' : 'estoque-ok';
+              const estoqueLabel = p.estoque <= 0 ? '🚨 0' : p.estoque <= p.estoque_minimo ? `⚠️ ${p.estoque}` : p.estoque;
+              return `
+              <tr>
+                <td>${p.nome}</td>
+                <td>${p.categoria}</td>
+                <td>${fmt(p.preco_venda)}</td>
+                <td>${fmt(p.preco_custo)}</td>
+                <td><span class="estoque-badge ${estoqueClass}">${estoqueLabel}</span></td>
+                <td>${p.estoque_minimo}</td>
+                <td>${p.status === 'inativo' ? '<span class="inativo-badge">Inativo</span>' : '<span style="color:var(--green)">Ativo</span>'}</td>
+                <td style="display:flex;gap:6px">
+                  <button class="btn-secondary btn-sm" data-action="editar" data-id="${p.id}">✏️</button>
+                  <button class="btn-secondary btn-sm" data-action="estoque" data-id="${p.id}">📦</button>
+                  <button class="btn-secondary btn-sm" data-action="excluir" data-id="${p.id}" style="color:var(--red);border-color:var(--red)">🗑️</button>
+                </td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>`;
+    return;
+  }
 
   lista.innerHTML = filtered.map(p => {
     const estoqueClass = p.estoque <= 0 ? 'estoque-zero' : p.estoque <= p.estoque_minimo ? 'estoque-baixo' : 'estoque-ok';
