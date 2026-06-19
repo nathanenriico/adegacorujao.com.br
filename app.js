@@ -938,11 +938,35 @@ document.querySelectorAll('.modal').forEach(modal => {
 function setupRealtime() {
   try {
     client.channel('realtime-adega')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendas' }, () => { loadUltimasVendas(); loadDashboard(); })
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gastos' }, () => { loadUltimasEntradas(); loadResumoEntradas(); })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, () => { loadProducts(); loadProdutosList(); })
-      .subscribe();
-  } catch (e) { console.warn('Realtime error', e); }
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
+        loadUltimasVendas();
+        loadDashboard();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'gastos' }, () => {
+        loadUltimasEntradas();
+        loadResumoEntradas();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, payload => {
+        loadProducts();
+        loadProdutosList();
+        // Se o produto selecionado na venda foi alterado, atualiza o estoque exibido
+        if (selectedProduct && payload.new?.id === selectedProduct.id) {
+          selectedProduct = { ...selectedProduct, ...payload.new };
+          if (prodSelEstoque) prodSelEstoque.textContent = `${selectedProduct.estoque} em estoque`;
+          recalcTotal();
+        }
+      })
+      .subscribe(status => {
+        if (status === 'SUBSCRIBED') console.log('✅ Realtime conectado');
+        if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
+          console.warn('⚠️ Realtime desconectado, reconectando...');
+          setTimeout(setupRealtime, 3000);
+        }
+      });
+  } catch (e) {
+    console.warn('Realtime error', e);
+    setTimeout(setupRealtime, 3000);
+  }
 }
 
 // ===== INIT =====
