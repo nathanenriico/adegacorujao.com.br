@@ -293,3 +293,103 @@ textarea { resize: vertical; }
   .modal { align-items: center; }
   .modal-box { border-radius: 20px; max-height: 85vh; }
 }
+
+/* ===== RESPONSIVE POLISH - cole este bloco no FINAL do seu CSS ===== */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+body {
+  min-width: 320px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button,
+.chip,
+.resultado-item,
+.historico-item {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.header,
+.main-content,
+.alertas-estoque {
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
+}
+
+.header {
+  min-height: 58px;
+  gap: 10px;
+}
+
+.header-logo {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.header-right {
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.main-content {
+  width: 100%;
+  padding-top: 14px;
+  padding-bottom: calc(92px + env(safe-area-inset-bottom));
+}
+
+.bottom-nav {
+  padding-bottom: env(safe-area-inset-bottom);
+  box-shadow: 0 -8px 28px rgba(0, 0, 0, .24);
+}
+
+.nav-btn {
+  min-width: 0;
+  min-height: 62px;
+  justify-content: center;
+}
+
+.nav-btn small {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card,
+.rel-card,
+.produto-item,
+.gasto-item,
+.painel-finalizar,
+.total-entrada-row,
+.rank-item,
+.alerta-item,
+.venda-dash-item,
+.ultima-venda-item,
+.historico-item {
+  box-shadow: 0 2px 14px rgba(0, 0, 0, .16);
+}
+
+.section-header,
+.vendas-header,
+.ultimas-header,
+.historico-header,
+.produto-item-header,
+.gasto-item-header,
+.historico-item-header,
+.rel-row,
+.total-row,
+.total-entrada-row {
+  gap: 10px;
+}
