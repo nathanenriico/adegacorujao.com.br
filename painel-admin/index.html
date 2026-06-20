@@ -16,27 +16,44 @@
     <button id="btn-sair" class="btn-ghost">Sair</button>
   </header>
 
+  <nav class="admin-tabs">
+    <button class="admin-tab active" data-tab="produtos">📦 Produtos</button>
+    <button class="admin-tab" data-tab="clientes">👥 Clientes</button>
+  </nav>
+
   <main class="admin-main">
-    <!-- Filtros e ações -->
-    <div class="toolbar">
-      <div class="filtros">
-        <input type="text" id="busca" placeholder="🔍 Buscar produto..." />
-        <select id="filtro-tipo">
-          <option value="">Todos os tipos</option>
-          <option value="Cervejas">Cervejas</option>
-          <option value="Copões">Copões</option>
-          <option value="Combos">Combos</option>
-          <option value="Destilados">Destilados</option>
-          <option value="Doses">Doses</option>
-          <option value="Gourmet">Gourmet</option>
-          <option value="Garrafas">Garrafas</option>
-        </select>
+
+    <!-- ABA PRODUTOS -->
+    <div id="tab-produtos" class="admin-tab-content active">
+      <div class="toolbar">
+        <div class="filtros">
+          <input type="text" id="busca" placeholder="🔍 Buscar produto..." />
+          <select id="filtro-tipo">
+            <option value="">Todos os tipos</option>
+            <option value="Cervejas">Cervejas</option>
+            <option value="Copões">Copões</option>
+            <option value="Combos">Combos</option>
+            <option value="Destilados">Destilados</option>
+            <option value="Doses">Doses</option>
+            <option value="Gourmet">Gourmet</option>
+            <option value="Garrafas">Garrafas</option>
+          </select>
+        </div>
+        <button id="btn-novo" class="btn-primary">+ Novo Produto</button>
       </div>
-      <button id="btn-novo" class="btn-primary">+ Novo Produto</button>
+      <div id="lista-produtos" class="produtos-grid"></div>
     </div>
 
-    <!-- Tabela de produtos -->
-    <div id="lista-produtos" class="produtos-grid"></div>
+    <!-- ABA CLIENTES -->
+    <div id="tab-clientes" class="admin-tab-content hidden">
+      <div class="toolbar">
+        <div class="filtros">
+          <input type="text" id="busca-cliente" placeholder="🔍 Buscar cliente..." />
+        </div>
+      </div>
+      <div id="lista-clientes"></div>
+    </div>
+
   </main>
 </div>
 

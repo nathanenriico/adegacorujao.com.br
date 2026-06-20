@@ -6,6 +6,18 @@ document.getElementById('btn-sair').addEventListener('click', () => {
   window.location.href = '../index.html';
 });
 
+// ===== ABAS =====
+document.querySelectorAll('.admin-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.add('hidden'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById(`tab-${tab}`).classList.remove('hidden');
+    if (tab === 'clientes') carregarClientes();
+  });
+});
+
 carregarProdutos();
 
 // ===== ESTADO =====
@@ -216,4 +228,82 @@ async function excluir(id) {
   if (error) { toast('Erro ao excluir: ' + error.message, 'error'); return; }
   toast('Produto excluído!', 'success');
   await carregarProdutos();
+}
+
+// ===== CLIENTES =====
+let vendas = [];
+
+async function carregarClientes() {
+  const lista = document.getElementById('lista-clientes');
+  lista.innerHTML = '<div class="loading">Carregando...</div>';
+  const { data, error } = await db.from('vendas').select('*').order('created_at', { ascending: false });
+  if (error) { lista.innerHTML = '<div class="empty-state">Erro ao carregar.</div>'; return; }
+  vendas = data || [];
+  renderClientes();
+}
+
+document.getElementById('busca-cliente').addEventListener('input', renderClientes);
+
+function renderClientes() {
+  const lista = document.getElementById('lista-clientes');
+  const busca = document.getElementById('busca-cliente').value.trim().toLowerCase();
+  const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+  const pgIcon = { pix: '💰', dinheiro: '💵', debito: '💳', credito: '💳', fiado: '📒' };
+
+  const filtradas = vendas.filter(v =>
+    (v.cliente_nome || '').toLowerCase().includes(busca) ||
+    (v.produto_nome || '').toLowerCase().includes(busca)
+  );
+
+  if (!filtradas.length) { lista.innerHTML = '<div class="empty-state">Nenhum cliente encontrado.</div>'; return; }
+
+  // Agrupar por cliente
+  const mapa = {};
+  filtradas.forEach(v => {
+    const nome = v.cliente_nome || 'Cliente balcão';
+    if (!mapa[nome]) mapa[nome] = { total: 0, compras: [] };
+    mapa[nome].total += Number(v.valor_total || 0);
+    mapa[nome].compras.push(v);
+  });
+
+  lista.innerHTML = Object.entries(mapa).map(([nome, d]) => `
+    <div class="cliente-card">
+      <div class="cliente-header">
+        <div>
+          <span class="cliente-nome">👤 ${nome}</span>
+          <span class="cliente-total">${d.compras.length} compra${d.compras.length > 1 ? 's' : ''} • Total: ${fmt(d.total)}</span>
+        </div>
+        <button class="btn-secondary" onclick="toggleCompras('${encodeURIComponent(nome)}')">Ver compras</button>
+      </div>
+      <div class="cliente-compras hidden" id="compras-${encodeURIComponent(nome)}">
+        ${d.compras.map(v => `
+          <div class="compra-item">
+            <div class="compra-info">
+              <span class="compra-produto">${v.produto_nome || ''} × ${v.quantidade}</span>
+              <span class="compra-data">${new Date(v.created_at).toLocaleString('pt-BR')} • ${pgIcon[v.forma_pagamento] || ''} ${v.forma_pagamento}</span>
+            </div>
+            <div class="compra-right">
+              <span class="compra-valor">${fmt(v.valor_total)}</span>
+              <button class="btn-excluir-venda" data-id="${v.id}" title="Excluir venda">🗑️</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  lista.querySelectorAll('.btn-excluir-venda').forEach(btn => {
+    btn.addEventListener('click', () => excluirVenda(btn.dataset.id));
+  });
+}
+
+function toggleCompras(nomeEnc) {
+  const el = document.getElementById(`compras-${nomeEnc}`);
+  if (el) el.classList.toggle('hidden');
+}
+
+async function excluirVenda(id) {
+  if (!confirm('Excluir esta venda? A ação não pode ser desfeita.')) return;
+  const { error } = await db.from('vendas').delete().eq('id', id);
+  if (error) { toast('Erro ao excluir venda: ' + error.message, 'error'); return; }
+  toast('Venda excluída!', 'success');
+  await carregarClientes();
 }
