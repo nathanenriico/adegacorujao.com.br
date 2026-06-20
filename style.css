@@ -149,8 +149,28 @@ textarea { resize: vertical; }
 @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* ===== ENTRADA DE MERCADORIAS ===== */
-.total-entrada-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
-.total-entrada-valor { font-size: 22px; font-weight: 700; color: var(--red); }
+.entrada-form-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 2px 14px rgba(0,0,0,.16);
+}
+.entrada-form-card .venda-campo label { margin-top: 0; }
+
+.total-entrada-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+}
+.total-entrada-valor { font-size: 22px; font-weight: 700; color: var(--orange); }
 
 /* ===== VENDA RÁPIDA ===== */
 .painel-venda { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
@@ -173,12 +193,13 @@ textarea { resize: vertical; }
 .total-hoje-badge { background: rgba(34,197,94,.15); color: var(--green); font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 20px; }
 .lista-ultimas { display: flex; flex-direction: column; gap: 8px; }
 .ultima-venda-item { background: var(--bg2); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.uv-left { display: flex; flex-direction: column; gap: 2px; flex: 1; }
-.uv-cliente { font-size: 14px; font-weight: 600; }
-.uv-produto { font-size: 12px; color: var(--text2); }
-.uv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.uv-left { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.uv-cliente { font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-produto { font-size: 12px; color: var(--text2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.uv-right { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
 .uv-valor { font-size: 16px; font-weight: 700; color: var(--green); }
 .uv-pag { font-size: 11px; color: var(--text2); text-transform: capitalize; }
+.uv-icon { font-size: 22px; flex-shrink: 0; line-height: 1; }
 
 /* Chips categoria */
 .category-chips { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 4px; scrollbar-width: none; }

@@ -539,13 +539,13 @@ async function loadUltimasEntradas() {
   if (!data?.length) { lista.innerHTML = '<div class="empty-state">Nenhuma entrada ainda.</div>'; return; }
   lista.innerHTML = data.map(g => `
     <div class="ultima-venda-item">
+      <div class="uv-icon">📦</div>
       <div class="uv-left">
         <span class="uv-cliente">${g.descricao}</span>
-        <span class="uv-produto">${g.fornecedor || 'Sem fornecedor'} • ${g.quantidade} un</span>
+        <span class="uv-produto">${g.fornecedor || 'Sem fornecedor'} · ${g.quantidade} un · ${new Date(g.created_at).toLocaleDateString('pt-BR')}</span>
       </div>
       <div class="uv-right">
-        <span class="uv-valor" style="color:var(--red)">${fmt(g.valor_gasto)}</span>
-        <span class="uv-pag">${new Date(g.created_at).toLocaleDateString('pt-BR')}</span>
+        <span class="uv-valor" style="color:var(--orange)">${fmt(g.valor_gasto)}</span>
       </div>
     </div>`).join('');
 }
