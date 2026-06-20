@@ -149,6 +149,12 @@ textarea { resize: vertical; }
 @keyframes slideDown { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
 
 /* ===== ENTRADA DE MERCADORIAS ===== */
+#painel-entrada {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
 .entrada-form-card {
   background: var(--bg2);
   border: 1px solid var(--border);
@@ -159,7 +165,7 @@ textarea { resize: vertical; }
   gap: 12px;
   box-shadow: 0 2px 14px rgba(0,0,0,.16);
 }
-.entrada-form-card .venda-campo label { margin-top: 0; }
+.entrada-form-card label { margin-top: 0; }
 
 .total-entrada-row {
   display: flex;
