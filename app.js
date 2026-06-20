@@ -218,6 +218,26 @@ btnRegistrar?.addEventListener('click', async () => {
       }]),
     ]);
 
+    // ── 5. Registrar/atualizar cliente ────────────────────────
+    if (clienteNome !== 'Cliente balcão') {
+      const { data: cliExist } = await client
+        .from('clientes').select('id, total_gasto, total_compras').eq('nome', clienteNome).maybeSingle();
+      if (cliExist) {
+        await client.from('clientes').update({
+          total_gasto:   Number(cliExist.total_gasto) + total,
+          total_compras: cliExist.total_compras + 1,
+          ultima_compra: new Date().toISOString(),
+        }).eq('id', cliExist.id);
+      } else {
+        await client.from('clientes').insert([{
+          nome:          clienteNome,
+          total_gasto:   total,
+          total_compras: 1,
+          ultima_compra: new Date().toISOString(),
+        }]);
+      }
+    }
+
     showToast('Venda registrada com sucesso! ✅', 'success');
     limparFormulario();
     // Realtime cuida das atualizações — só força products localmente

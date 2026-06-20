@@ -76,6 +76,25 @@ CREATE TABLE IF NOT EXISTS movimentacoes_estoque (
 );
 
 -- ============================================================
+-- MIGRAÇÃO: tabela de clientes
+-- Execute no SQL Editor do Supabase
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS clientes (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  nome TEXT NOT NULL UNIQUE,
+  total_gasto NUMERIC(10,2) NOT NULL DEFAULT 0,
+  total_compras INTEGER NOT NULL DEFAULT 0,
+  ultima_compra TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
+
+-- Adicionar clientes à publicação realtime
+ALTER PUBLICATION supabase_realtime ADD TABLE clientes;
+
+-- ============================================================
 -- MIGRAÇÃO: novos campos na tabela vendas (execute se já tinha o banco criado)
 -- ============================================================
 ALTER TABLE vendas ADD COLUMN IF NOT EXISTS cliente_nome TEXT NOT NULL DEFAULT 'Cliente balcão';

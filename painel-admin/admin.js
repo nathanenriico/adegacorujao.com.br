@@ -236,7 +236,7 @@ let vendas = [];
 async function carregarClientes() {
   const lista = document.getElementById('lista-clientes');
   lista.innerHTML = '<div class="loading">Carregando...</div>';
-  const { data, error } = await db.from('vendas').select('*').order('created_at', { ascending: false });
+  const { data, error } = await db.from('clientes').select('*').order('ultima_compra', { ascending: false });
   if (error) { lista.innerHTML = '<div class="empty-state">Erro ao carregar.</div>'; return; }
   vendas = data || [];
   renderClientes();
@@ -248,62 +248,88 @@ function renderClientes() {
   const lista = document.getElementById('lista-clientes');
   const busca = document.getElementById('busca-cliente').value.trim().toLowerCase();
   const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
-  const pgIcon = { pix: '💰', dinheiro: '💵', debito: '💳', credito: '💳', fiado: '📒' };
 
-  const filtradas = vendas.filter(v =>
-    (v.cliente_nome || '').toLowerCase().includes(busca) ||
-    (v.produto_nome || '').toLowerCase().includes(busca)
+  const filtrados = vendas.filter(c =>
+    (c.nome || '').toLowerCase().includes(busca)
   );
 
-  if (!filtradas.length) { lista.innerHTML = '<div class="empty-state">Nenhum cliente encontrado.</div>'; return; }
+  if (!filtrados.length) { lista.innerHTML = '<div class="empty-state">Nenhum cliente encontrado.</div>'; return; }
 
-  // Agrupar por cliente
-  const mapa = {};
-  filtradas.forEach(v => {
-    const nome = v.cliente_nome || 'Cliente balcão';
-    if (!mapa[nome]) mapa[nome] = { total: 0, compras: [] };
-    mapa[nome].total += Number(v.valor_total || 0);
-    mapa[nome].compras.push(v);
-  });
-
-  lista.innerHTML = Object.entries(mapa).map(([nome, d]) => `
+  lista.innerHTML = filtrados.map(c => `
     <div class="cliente-card">
       <div class="cliente-header">
         <div>
-          <span class="cliente-nome">👤 ${nome}</span>
-          <span class="cliente-total">${d.compras.length} compra${d.compras.length > 1 ? 's' : ''} • Total: ${fmt(d.total)}</span>
+          <span class="cliente-nome">👤 ${c.nome}</span>
+          <span class="cliente-total">
+            ${c.total_compras} compra${c.total_compras !== 1 ? 's' : ''}
+            &bull; Total gasto: ${fmt(c.total_gasto)}
+            ${c.ultima_compra ? '&bull; Última: ' + new Date(c.ultima_compra).toLocaleDateString('pt-BR') : ''}
+          </span>
         </div>
-        <button class="btn-secondary" onclick="toggleCompras('${encodeURIComponent(nome)}')">Ver compras</button>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn-secondary" data-id="${c.id}" data-acao="ver-compras">Ver compras</button>
+          <button class="btn-secondary" data-id="${c.id}" data-acao="excluir-cliente" style="color:var(--red);border-color:var(--red)">🗑️</button>
+        </div>
       </div>
-      <div class="cliente-compras hidden" id="compras-${encodeURIComponent(nome)}">
-        ${d.compras.map(v => `
-          <div class="compra-item">
-            <div class="compra-info">
-              <span class="compra-produto">${v.produto_nome || ''} × ${v.quantidade}</span>
-              <span class="compra-data">${new Date(v.created_at).toLocaleString('pt-BR')} • ${pgIcon[v.forma_pagamento] || ''} ${v.forma_pagamento}</span>
-            </div>
-            <div class="compra-right">
-              <span class="compra-valor">${fmt(v.valor_total)}</span>
-              <button class="btn-excluir-venda" data-id="${v.id}" title="Excluir venda">🗑️</button>
-            </div>
-          </div>`).join('')}
-      </div>
+      <div class="cliente-compras hidden" id="compras-${c.id}"></div>
     </div>`).join('');
 
-  lista.querySelectorAll('.btn-excluir-venda').forEach(btn => {
-    btn.addEventListener('click', () => excluirVenda(btn.dataset.id));
+  lista.querySelectorAll('[data-acao]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.dataset.acao === 'ver-compras') carregarComprasCliente(btn.dataset.id);
+      if (btn.dataset.acao === 'excluir-cliente') excluirCliente(btn.dataset.id);
+    });
   });
 }
 
-function toggleCompras(nomeEnc) {
-  const el = document.getElementById(`compras-${nomeEnc}`);
-  if (el) el.classList.toggle('hidden');
+async function carregarComprasCliente(clienteId) {
+  const cliente = vendas.find(c => c.id === clienteId); if (!cliente) return;
+  const el = document.getElementById(`compras-${clienteId}`); if (!el) return;
+
+  if (!el.classList.contains('hidden')) { el.classList.add('hidden'); return; }
+
+  el.innerHTML = '<div class="loading" style="padding:12px">Carregando...</div>';
+  el.classList.remove('hidden');
+
+  const { data, error } = await db.from('vendas')
+    .select('*').eq('cliente_nome', cliente.nome).order('created_at', { ascending: false });
+
+  if (error || !data?.length) { el.innerHTML = '<div class="empty-state" style="padding:12px">Nenhuma compra encontrada.</div>'; return; }
+
+  const fmt = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+  const pgIcon = { pix: '💰', dinheiro: '💵', debito: '💳', credito: '💳', fiado: '📒' };
+
+  el.innerHTML = data.map(v => `
+    <div class="compra-item">
+      <div class="compra-info">
+        <span class="compra-produto">${v.produto_nome || ''} × ${v.quantidade}</span>
+        <span class="compra-data">${new Date(v.created_at).toLocaleString('pt-BR')} &bull; ${pgIcon[v.forma_pagamento] || ''} ${v.forma_pagamento}</span>
+      </div>
+      <div class="compra-right">
+        <span class="compra-valor">${fmt(v.valor_total)}</span>
+        <button class="btn-excluir-venda" data-id="${v.id}" data-cliente-id="${clienteId}">🗑️</button>
+      </div>
+    </div>`).join('');
+
+  el.querySelectorAll('.btn-excluir-venda').forEach(btn => {
+    btn.addEventListener('click', () => excluirVenda(btn.dataset.id, btn.dataset.clienteId));
+  });
 }
 
-async function excluirVenda(id) {
+async function excluirVenda(id, clienteId) {
   if (!confirm('Excluir esta venda? A ação não pode ser desfeita.')) return;
   const { error } = await db.from('vendas').delete().eq('id', id);
   if (error) { toast('Erro ao excluir venda: ' + error.message, 'error'); return; }
   toast('Venda excluída!', 'success');
+  await carregarClientes();
+  carregarComprasCliente(clienteId);
+}
+
+async function excluirCliente(id) {
+  const c = vendas.find(x => x.id === id); if (!c) return;
+  if (!confirm(`Excluir o cliente "${c.nome}"? As vendas não serão apagadas.`)) return;
+  const { error } = await db.from('clientes').delete().eq('id', id);
+  if (error) { toast('Erro ao excluir cliente: ' + error.message, 'error'); return; }
+  toast('Cliente excluído!', 'success');
   await carregarClientes();
 }
