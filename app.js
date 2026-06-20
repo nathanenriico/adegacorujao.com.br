@@ -138,66 +138,99 @@ document.addEventListener('click', e => {
 });
 
 // ===== REGISTRAR VENDA =====
+// Trava global para evitar duplo clique / duplo envio
+let _vendaEmAndamento = false;
+
 btnRegistrar?.addEventListener('click', async () => {
+  if (_vendaEmAndamento) return;                               // bloqueia reentrada
   if (!selectedProduct) return showToast('Selecione um produto', 'error');
-  const qty = parseInt(vendaQtdEl?.value) || 0;
+
+  const qty   = parseInt(vendaQtdEl?.value) || 0;
   const total = parseFloat(vendaValorEl?.value) || 0;
-  if (qty < 1) return showToast('Informe a quantidade', 'error');
+  if (qty < 1)    return showToast('Informe a quantidade', 'error');
   if (total <= 0) return showToast('Informe o valor total', 'error');
   if (!formaPagamentoEl?.value) return showToast('Escolha a forma de pagamento', 'error');
-
-  // Re-verificar estoque no Supabase
-  const { data: prodAtual } = await client.from('produtos').select('estoque').eq('id', selectedProduct.id).single();
-  if (!prodAtual || qty > prodAtual.estoque) return showToast('Estoque insuficiente para este produto.', 'error');
 
   const vendedor = document.getElementById('vendedor-select')?.value;
   if (!vendedor) return showToast('Selecione o vendedor', 'error');
 
-  const clienteNome = vendaClienteEl?.value.trim() || 'Cliente balcão';
-
-  const venda = {
-    cliente_nome: clienteNome,
-    produto_id: selectedProduct.id,
-    produto_nome: selectedProduct.nome,
-    quantidade: qty,
-    valor_unitario: Number(selectedProduct.preco_venda),
-    valor_total: total,
-    forma_pagamento: formaPagamentoEl.value,
-    observacao: obsVendaEl?.value || '',
-    administrador_email: vendedor,
-  };
-
+  // ── Travar UI ──────────────────────────────────────────────
+  _vendaEmAndamento = true;
   btnRegistrar.disabled = true;
+  btnRegistrar.textContent = '⏳ Registrando...';
 
-  const { data: vendaData, error: vendaErr } = await client.from('vendas').insert([venda]).select().single();
-  if (vendaErr) { btnRegistrar.disabled = false; console.error(vendaErr); return showToast('Erro ao registrar venda', 'error'); }
+  try {
+    // ── 1. Busca estoque atual direto no banco (fonte da verdade) ──
+    const { data: prodAtual, error: errProd } = await client
+      .from('produtos').select('estoque').eq('id', selectedProduct.id).single();
 
-  // Registrar item da venda
-  await client.from('itens_venda').insert([{
-    venda_id: vendaData.id,
-    produto_id: selectedProduct.id,
-    nome_produto: selectedProduct.nome,
-    quantidade: qty,
-    preco_unitario: Number(selectedProduct.preco_venda),
-    custo_unitario: Number(selectedProduct.preco_custo || 0),
-    subtotal: total,
-  }]);
+    if (errProd || !prodAtual) throw new Error('Produto não encontrado.');
+    if (qty > prodAtual.estoque)  throw new Error(`Estoque insuficiente. Disponível: ${prodAtual.estoque} un.`);
 
-  // Atualizar estoque
-  await client.from('produtos').update({ estoque: prodAtual.estoque - qty }).eq('id', selectedProduct.id);
-  await client.from('movimentacoes_estoque').insert([{
-    produto_id: selectedProduct.id,
-    nome_produto: selectedProduct.nome,
-    tipo: 'Saída',
-    quantidade: qty,
-    motivo: 'Venda',
-    administrador_email: vendedor,
-  }]);
+    const novoEstoque = prodAtual.estoque - qty;
 
-  showToast('Venda registrada com sucesso.', 'success');
-  limparFormulario();
-  await Promise.all([loadProducts(), loadUltimasVendas()]);
-  btnRegistrar.disabled = false;
+    // ── 2. Decrementar estoque com condição (evita race condition) ──
+    // Só atualiza se o estoque ainda for >= qty no momento do UPDATE
+    const { data: updProd, error: errUpd } = await client
+      .from('produtos')
+      .update({ estoque: novoEstoque })
+      .eq('id', selectedProduct.id)
+      .gte('estoque', qty)   // condição atômica
+      .select('estoque')
+      .single();
+
+    if (errUpd || !updProd) throw new Error('Estoque insuficiente ou alterado por outro vendedor. Tente novamente.');
+
+    // ── 3. Inserir venda ────────────────────────────────────────
+    const clienteNome = vendaClienteEl?.value.trim() || 'Cliente balcão';
+    const { data: vendaData, error: vendaErr } = await client.from('vendas').insert([{
+      cliente_nome:       clienteNome,
+      produto_id:         selectedProduct.id,
+      produto_nome:       selectedProduct.nome,
+      quantidade:         qty,
+      valor_unitario:     Number(selectedProduct.preco_venda),
+      valor_total:        total,
+      forma_pagamento:    formaPagamentoEl.value,
+      observacao:         obsVendaEl?.value || '',
+      administrador_email: vendedor,
+    }]).select().single();
+
+    if (vendaErr) throw new Error('Erro ao salvar venda: ' + vendaErr.message);
+
+    // ── 4. Itens da venda + movimentação (fire-and-forget) ──────
+    await Promise.all([
+      client.from('itens_venda').insert([{
+        venda_id:       vendaData.id,
+        produto_id:     selectedProduct.id,
+        nome_produto:   selectedProduct.nome,
+        quantidade:     qty,
+        preco_unitario: Number(selectedProduct.preco_venda),
+        custo_unitario: Number(selectedProduct.preco_custo || 0),
+        subtotal:       total,
+      }]),
+      client.from('movimentacoes_estoque').insert([{
+        produto_id:          selectedProduct.id,
+        nome_produto:        selectedProduct.nome,
+        tipo:                'Saída',
+        quantidade:          qty,
+        motivo:              'Venda',
+        administrador_email: vendedor,
+      }]),
+    ]);
+
+    showToast('Venda registrada com sucesso! ✅', 'success');
+    limparFormulario();
+    // Realtime cuida das atualizações — só força products localmente
+    const idx = products.findIndex(p => p.id === selectedProduct?.id);
+    if (idx !== -1) products[idx] = { ...products[idx], estoque: novoEstoque };
+
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    _vendaEmAndamento = false;
+    btnRegistrar.disabled = false;
+    btnRegistrar.textContent = '✅ Registrar Venda';
+  }
 });
 
 function limparFormulario() {
@@ -995,38 +1028,78 @@ document.querySelectorAll('.modal').forEach(modal => {
 });
 
 // ===== REALTIME =====
-function setupRealtime() {
-  try {
-    client.channel('realtime-adega')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'vendas' }, () => {
-        loadUltimasVendas();
-        loadDashboard();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'gastos' }, () => {
-        loadUltimasEntradas();
-        loadResumoEntradas();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, payload => {
-        loadProducts();
-        loadProdutosList();
-        // Se o produto selecionado na venda foi alterado, atualiza o estoque exibido
-        if (selectedProduct && payload.new?.id === selectedProduct.id) {
-          selectedProduct = { ...selectedProduct, ...payload.new };
-          if (prodSelEstoque) prodSelEstoque.textContent = `${selectedProduct.estoque} em estoque`;
-          recalcTotal();
-        }
-      })
-      .subscribe(status => {
-        if (status === 'SUBSCRIBED') console.log('✅ Realtime conectado');
-        if (status === 'CLOSED' || status === 'CHANNEL_ERROR') {
-          console.warn('⚠️ Realtime desconectado, reconectando...');
-          setTimeout(setupRealtime, 3000);
-        }
-      });
-  } catch (e) {
-    console.warn('Realtime error', e);
-    setTimeout(setupRealtime, 3000);
+let _realtimeChannel = null;
+
+// Debounce simples para agrupar múltiplos eventos rápidos
+function debounce(fn, ms) {
+  let t;
+  return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+}
+
+const _debouncedUltimasVendas   = debounce(loadUltimasVendas, 300);
+const _debouncedDashboard        = debounce(loadDashboard, 600);
+const _debouncedUltimasEntradas  = debounce(loadUltimasEntradas, 300);
+const _debouncedResumoEntradas   = debounce(loadResumoEntradas, 600);
+const _debouncedProdutosList     = debounce(renderProdutosList, 300);
+
+function onProdutoChange(payload) {
+  const novo = payload.new;
+  if (!novo) return;
+
+  // Atualiza só o item alterado no array local
+  const idx = products.findIndex(p => p.id === novo.id);
+  if (idx !== -1) products[idx] = { ...products[idx], ...novo };
+  else products.push(novo);
+
+  // Atualiza o produto selecionado na tela de vendas
+  if (selectedProduct?.id === novo.id) {
+    selectedProduct = { ...selectedProduct, ...novo };
+    if (prodSelEstoque) prodSelEstoque.textContent = `${novo.estoque} em estoque`;
+    // Avisa se estoque foi reduzido por outro vendedor enquanto este está digitando
+    if (novo.estoque < (parseInt(vendaQtdEl?.value) || 1)) {
+      showToast(`⚠️ Estoque de "${novo.nome}" atualizado: ${novo.estoque} un disponíveis.`, 'info');
+    }
+    recalcTotal();
   }
+
+  renderSearchResults();
+  renderDashEstoqueBaixo();
+  verificarEstoqueMinimo();
+  _debouncedProdutosList();
+}
+
+function setupRealtime() {
+  // Remove canal anterior se existir
+  if (_realtimeChannel) {
+    client.removeChannel(_realtimeChannel);
+    _realtimeChannel = null;
+  }
+
+  _realtimeChannel = client.channel('adega-realtime', {
+    config: { broadcast: { self: false } },
+  })
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendas' }, () => {
+    _debouncedUltimasVendas();
+    _debouncedDashboard();
+  })
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'gastos' }, () => {
+    _debouncedUltimasEntradas();
+    _debouncedResumoEntradas();
+  })
+  .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'gastos' }, () => {
+    _debouncedUltimasEntradas();
+    _debouncedResumoEntradas();
+  })
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'produtos' }, onProdutoChange)
+  .subscribe(status => {
+    if (status === 'SUBSCRIBED') {
+      console.log('✅ Realtime conectado');
+    }
+    if (status === 'CLOSED' || status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      console.warn('⚠️ Realtime desconectado, reconectando em 4s...');
+      setTimeout(setupRealtime, 4000);
+    }
+  });
 }
 
 // ===== INIT =====
