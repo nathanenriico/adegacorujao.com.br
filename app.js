@@ -652,25 +652,51 @@ function renderProdutosList() {
 
   lista.innerHTML = filtered.map(p => {
     const estoqueClass = p.estoque <= 0 ? 'estoque-zero' : p.estoque <= p.estoque_minimo ? 'estoque-baixo' : 'estoque-ok';
-    const estoqueLabel = p.estoque <= 0 ? 'Sem estoque' : p.estoque <= p.estoque_minimo ? `⚠️ ${p.estoque} un` : `${p.estoque} un`;
+    const estoqueLabel = p.estoque <= 0 ? '🚨 Sem estoque' : p.estoque <= p.estoque_minimo ? `⚠️ ${p.estoque} un` : `${p.estoque} un`;
+    const fotos = (p.fotos_urls && p.fotos_urls.length ? p.fotos_urls : (p.foto_url ? [p.foto_url] : []));
+    const pid = p.id;
+
+    let fotoHtml = '';
+    if (fotos.length === 1) {
+      fotoHtml = `<div class="produto-item-img"><img src="${fotos[0]}" alt="${p.nome}" onerror="this.parentElement.style.display='none'" /></div>`;
+    } else if (fotos.length > 1) {
+      const slides = fotos.map((url, i) =>
+        `<div class="carrossel-slide${i === 0 ? ' ativo' : ''}"><img src="${url}" alt="${p.nome} ${i+1}" onerror="this.parentElement.style.display='none'" /></div>`
+      ).join('');
+      const dots = fotos.map((_, i) =>
+        `<button class="carrossel-dot${i === 0 ? ' ativo' : ''}" data-idx="${i}"></button>`
+      ).join('');
+      fotoHtml = `
+        <div class="produto-item-img carrossel" data-pid="${pid}">
+          <div class="carrossel-track">${slides}</div>
+          <button class="carrossel-btn carrossel-prev" data-dir="-1">&#8249;</button>
+          <button class="carrossel-btn carrossel-next" data-dir="1">&#8250;</button>
+          <div class="carrossel-dots">${dots}</div>
+          <span class="carrossel-counter">1 / ${fotos.length}</span>
+        </div>`;
+    }
+
     return `
     <div class="produto-item">
-      <div class="produto-item-header">
-        <span class="produto-nome">${p.nome}</span>
-        <span class="produto-categoria">${p.categoria}</span>
-      </div>
-      <div class="produto-precos">
-        <span>Venda: <strong>${fmt(p.preco_venda)}</strong></span>
-        <span>Custo: <strong>${fmt(p.preco_custo)}</strong></span>
-      </div>
-      <div class="produto-estoque">
-        <span class="estoque-badge ${estoqueClass}">${estoqueLabel}</span>
-        ${p.status === 'inativo' ? '<span class="inativo-badge">Inativo</span>' : ''}
-      </div>
-      <div class="produto-acoes">
-        <button class="btn-secondary btn-sm" data-action="editar" data-id="${p.id}">✏️ Editar</button>
-        <button class="btn-secondary btn-sm" data-action="estoque" data-id="${p.id}">📦 Estoque</button>
-        <button class="btn-secondary btn-sm" data-action="excluir" data-id="${p.id}" style="color:var(--red);border-color:var(--red)">🗑️ Excluir</button>
+      ${fotoHtml}
+      <div class="produto-item-body">
+        <div class="produto-item-header">
+          <span class="produto-nome">${p.nome}</span>
+          <span class="produto-categoria">${p.categoria}</span>
+        </div>
+        <div class="produto-precos">
+          <span>Venda: <strong>${fmt(p.preco_venda)}</strong></span>
+          <span class="custo">Custo: <strong>${fmt(p.preco_custo)}</strong></span>
+        </div>
+        <div class="produto-estoque-row">
+          <span class="estoque-badge ${estoqueClass}">${estoqueLabel}</span>
+          ${p.status === 'inativo' ? '<span class="inativo-badge">Inativo</span>' : ''}
+        </div>
+        <div class="produto-acoes">
+          <button class="btn-secondary btn-sm" data-action="editar" data-id="${pid}">✏️ Editar</button>
+          <button class="btn-secondary btn-sm" data-action="estoque" data-id="${pid}">📦 Estoque</button>
+          <button class="btn-secondary btn-sm" data-action="excluir" data-id="${pid}" style="color:var(--red);border-color:var(--red)">🗑️ Excluir</button>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -682,6 +708,31 @@ document.getElementById('lista-produtos')?.addEventListener('click', e => {
   if (btn.dataset.action === 'editar') abrirModalProduto(id);
   if (btn.dataset.action === 'estoque') abrirModalEstoque(id);
   if (btn.dataset.action === 'excluir') excluirProduto(id);
+});
+
+// Carrossel de fotos
+document.getElementById('lista-produtos')?.addEventListener('click', e => {
+  const btnNav = e.target.closest('.carrossel-btn');
+  const btnDot = e.target.closest('.carrossel-dot');
+  const carr = (btnNav || btnDot)?.closest('.carrossel');
+  if (!carr) return;
+  e.stopPropagation();
+
+  const slides = carr.querySelectorAll('.carrossel-slide');
+  const dots   = carr.querySelectorAll('.carrossel-dot');
+  const counter = carr.querySelector('.carrossel-counter');
+  const total  = slides.length;
+  let atual = [...slides].findIndex(s => s.classList.contains('ativo'));
+
+  if (btnDot) {
+    atual = parseInt(btnDot.dataset.idx);
+  } else {
+    atual = (atual + parseInt(btnNav.dataset.dir) + total) % total;
+  }
+
+  slides.forEach((s, i) => s.classList.toggle('ativo', i === atual));
+  dots.forEach((d, i) => d.classList.toggle('ativo', i === atual));
+  if (counter) counter.textContent = `${atual + 1} / ${total}`;
 });
 
 document.getElementById('busca-produto-lista')?.addEventListener('input', renderProdutosList);
@@ -729,6 +780,15 @@ document.getElementById('form-produto')?.addEventListener('submit', async e => {
 async function excluirProduto(id) {
   const p = products.find(x => x.id === id); if (!p) return;
   if (!confirm(`Excluir "${p.nome}"? Esta ação não pode ser desfeita.`)) return;
+
+  // Anular referências nas tabelas filhas antes de excluir
+  await Promise.all([
+    client.from('vendas').update({ produto_id: null }).eq('produto_id', id),
+    client.from('itens_venda').update({ produto_id: null }).eq('produto_id', id),
+    client.from('gastos').update({ produto_id: null }).eq('produto_id', id),
+    client.from('movimentacoes_estoque').update({ produto_id: null }).eq('produto_id', id),
+  ]);
+
   const { error } = await client.from('produtos').delete().eq('id', id);
   if (error) { console.error(error); return showToast('Erro ao excluir produto', 'error'); }
   showToast('Produto excluído!', 'success');
