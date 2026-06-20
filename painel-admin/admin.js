@@ -2,28 +2,10 @@ const SUPABASE_URL = 'https://fykqqioozgotmmebtlix.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ5a3FxaW9vemdvdG1tZWJ0bGl4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE1NjYyNTksImV4cCI6MjA5NzE0MjI1OX0.ZWw5GvAcYNFCAlOcDLINE2Pi8g4SToBlPMmzg2NuTA8';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-document.getElementById('btn-sair').addEventListener('click', () => {
-  window.location.href = '../index.html';
-});
-
-// ===== ABAS =====
-document.querySelectorAll('.admin-tab').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.add('hidden'));
-    btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    document.getElementById(`tab-${tab}`).classList.remove('hidden');
-    if (tab === 'clientes') carregarClientes();
-  });
-});
-
-carregarProdutos();
-
 // ===== ESTADO =====
 let produtos = [];
-let fotosArquivos = [];   // arquivos novos a enviar
-let fotosUrls = [];       // urls já salvas + novas via URL
+let fotosArquivos = [];
+let fotosUrls = [];
 
 // ===== TOAST =====
 const toastEl = document.getElementById('toast');
@@ -34,6 +16,23 @@ function toast(msg, tipo = 'info') {
   clearTimeout(toastEl._t);
   toastEl._t = setTimeout(() => toastEl.classList.add('hidden'), 2800);
 }
+
+document.getElementById('btn-sair').addEventListener('click', () => {
+  window.location.href = '../index.html';
+});
+
+// ===== ABAS =====
+document.querySelectorAll('.admin-tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.admin-tab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.admin-tab-content').forEach(t => t.classList.add('hidden'));
+    btn.classList.add('active');
+    document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
+    if (btn.dataset.tab === 'clientes') carregarClientes();
+  });
+});
+
+carregarProdutos();
 
 // ===== CARREGAR PRODUTOS =====
 async function carregarProdutos() {
