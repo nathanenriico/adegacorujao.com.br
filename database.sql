@@ -89,9 +89,14 @@ CREATE TABLE IF NOT EXISTS clientes (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Desabilitar RLS para acesso público (mesmo padrão das outras tabelas)
 ALTER TABLE clientes DISABLE ROW LEVEL SECURITY;
 
--- Adicionar clientes à publicação realtime
+-- Garantir permissões para o usuário anônimo
+GRANT SELECT, INSERT, UPDATE, DELETE ON clientes TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON clientes TO authenticated;
+
+-- Adicionar à publicação realtime
 ALTER PUBLICATION supabase_realtime ADD TABLE clientes;
 
 -- ============================================================
