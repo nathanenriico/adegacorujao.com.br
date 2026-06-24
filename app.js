@@ -154,6 +154,9 @@ btnRegistrar?.addEventListener('click', async () => {
   const vendedor = document.getElementById('vendedor-select')?.value;
   if (!vendedor) return showToast('Selecione o vendedor', 'error');
 
+  const clienteNome = vendaClienteEl?.value.trim();
+  if (!clienteNome) return showToast('Informe o nome do cliente', 'error');
+
   // ── Travar UI ──────────────────────────────────────────────
   _vendaEmAndamento = true;
   btnRegistrar.disabled = true;
@@ -182,7 +185,6 @@ btnRegistrar?.addEventListener('click', async () => {
     if (errUpd || !updProd) throw new Error('Estoque insuficiente ou alterado por outro vendedor. Tente novamente.');
 
     // ── 3. Inserir venda ────────────────────────────────────────
-    const clienteNome = vendaClienteEl?.value.trim() || 'Cliente balcão';
     const { data: vendaData, error: vendaErr } = await client.from('vendas').insert([{
       cliente_nome:       clienteNome,
       produto_id:         selectedProduct.id,
