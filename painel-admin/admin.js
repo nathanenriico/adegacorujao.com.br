@@ -29,6 +29,7 @@ document.querySelectorAll('.admin-tab').forEach(btn => {
     btn.classList.add('active');
     document.getElementById(`tab-${btn.dataset.tab}`).classList.remove('hidden');
     if (btn.dataset.tab === 'clientes') carregarClientes();
+    if (btn.dataset.tab === 'fiados') carregarFiados();
   });
 });
 
@@ -331,4 +332,104 @@ async function excluirCliente(id) {
   if (error) { toast('Erro ao excluir cliente: ' + error.message, 'error'); return; }
   toast('Cliente excluído!', 'success');
   await carregarClientes();
+}
+
+// ===== FIADOS =====
+let fiados = [];
+
+async function carregarFiados() {
+  const lista = document.getElementById('lista-fiados');
+  lista.innerHTML = '<div class="loading">Carregando...</div>';
+  const { data, error } = await db.from('fiados')
+    .select('*').eq('status', 'pendente').order('created_at', { ascending: false });
+  if (error) { lista.innerHTML = '<div class="empty-state">Erro ao carregar.</div>'; return; }
+  fiados = data || [];
+  renderFiados();
+}
+
+document.getElementById('busca-fiado').addEventListener('input', renderFiados);
+
+function renderFiados() {
+  const lista  = document.getElementById('lista-fiados');
+  const resumo = document.getElementById('fiados-resumo');
+  const busca  = document.getElementById('busca-fiado').value.trim().toLowerCase();
+  const fmt    = v => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v || 0);
+
+  const filtrados = fiados.filter(f =>
+    (f.cliente_nome || '').toLowerCase().includes(busca) ||
+    (f.produto_nome || '').toLowerCase().includes(busca)
+  );
+
+  // Resumo total
+  const totalPendente = fiados.reduce((s, f) => s + Number(f.valor_total || 0), 0);
+  resumo.innerHTML = `<span class="fiado-total-badge">Total pendente: ${fmt(totalPendente)}</span>`;
+
+  if (!filtrados.length) {
+    lista.innerHTML = '<div class="empty-state">✅ Nenhum fiado pendente.</div>';
+    return;
+  }
+
+  // Agrupar por cliente
+  const mapa = {};
+  filtrados.forEach(f => {
+    const nome = f.cliente_nome || 'Sem nome';
+    if (!mapa[nome]) mapa[nome] = { total: 0, itens: [] };
+    mapa[nome].total += Number(f.valor_total || 0);
+    mapa[nome].itens.push(f);
+  });
+
+  lista.innerHTML = Object.entries(mapa).map(([nome, d]) => `
+    <div class="cliente-card">
+      <div class="cliente-header">
+        <div>
+          <span class="cliente-nome">📒 ${nome}</span>
+          <span class="cliente-total">${d.itens.length} item${d.itens.length > 1 ? 's' : ''} • Deve: <strong style="color:var(--red)">${fmt(d.total)}</strong></span>
+        </div>
+        <button class="btn-primary btn-pagar-todos" data-nome="${nome}">✅ Quitar tudo</button>
+      </div>
+      <div class="cliente-compras">
+        ${d.itens.map(f => `
+          <div class="compra-item">
+            <div class="compra-info">
+              <span class="compra-produto">${f.produto_nome || ''} × ${f.quantidade}</span>
+              <span class="compra-data">${new Date(f.created_at).toLocaleString('pt-BR')}${f.observacao ? ' • ' + f.observacao : ''}</span>
+            </div>
+            <div class="compra-right">
+              <span class="compra-valor" style="color:var(--red)">${fmt(f.valor_total)}</span>
+              <button class="btn-pagar-item btn-primary" data-id="${f.id}">✅ Pago</button>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>`).join('');
+
+  // Eventos
+  lista.querySelectorAll('.btn-pagar-item').forEach(btn => {
+    btn.addEventListener('click', () => marcarPago(btn.dataset.id));
+  });
+  lista.querySelectorAll('.btn-pagar-todos').forEach(btn => {
+    btn.addEventListener('click', () => quitarTudo(btn.dataset.nome));
+  });
+}
+
+async function marcarPago(id) {
+  if (!confirm('Marcar este fiado como pago?')) return;
+  const { error } = await db.from('fiados').update({
+    status: 'pago',
+    pago_em: new Date().toISOString(),
+  }).eq('id', id);
+  if (error) { toast('Erro ao atualizar: ' + error.message, 'error'); return; }
+  toast('Fiado marcado como pago!', 'success');
+  await carregarFiados();
+}
+
+async function quitarTudo(nomeCliente) {
+  if (!confirm(`Quitar todos os fiados de "${nomeCliente}"?`)) return;
+  const ids = fiados.filter(f => f.cliente_nome === nomeCliente).map(f => f.id);
+  const { error } = await db.from('fiados').update({
+    status: 'pago',
+    pago_em: new Date().toISOString(),
+  }).in('id', ids);
+  if (error) { toast('Erro ao quitar: ' + error.message, 'error'); return; }
+  toast(`Fiados de "${nomeCliente}" quitados!`, 'success');
+  await carregarFiados();
 }

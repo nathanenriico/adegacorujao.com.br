@@ -127,3 +127,9 @@ input:focus, select:focus { outline: none; border-color: var(--primary); }
 .compra-valor { font-weight: 700; color: var(--primary); font-size: 14px; }
 .btn-excluir-venda { background: transparent; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; cursor: pointer; font-size: 14px; transition: border-color .2s; }
 .btn-excluir-venda:hover { border-color: var(--red); }
+
+/* FIADOS */
+.fiados-resumo { display: flex; align-items: center; }
+.fiado-total-badge { background: rgba(239,68,68,.12); color: var(--red); border: 1px solid var(--red); border-radius: 999px; padding: 6px 14px; font-size: 13px; font-weight: 700; }
+.btn-pagar-item { padding: 5px 10px; font-size: 12px; }
+.btn-pagar-todos { padding: 7px 14px; font-size: 13px; }

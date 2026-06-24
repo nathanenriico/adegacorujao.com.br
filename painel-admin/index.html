@@ -18,6 +18,7 @@
   <nav class="admin-tabs">
     <button class="admin-tab active" data-tab="produtos">📦 Produtos</button>
     <button class="admin-tab" data-tab="clientes">👥 Clientes</button>
+    <button class="admin-tab" data-tab="fiados">📒 Fiados</button>
   </nav>
 
   <main class="admin-main">
@@ -51,6 +52,17 @@
         </div>
       </div>
       <div id="lista-clientes"></div>
+    </div>
+
+    <!-- ABA FIADOS -->
+    <div id="tab-fiados" class="admin-tab-content hidden">
+      <div class="toolbar">
+        <div class="filtros">
+          <input type="text" id="busca-fiado" placeholder="🔍 Buscar cliente..." />
+        </div>
+        <div id="fiados-resumo" class="fiados-resumo"></div>
+      </div>
+      <div id="lista-fiados"></div>
     </div>
 
   </main>

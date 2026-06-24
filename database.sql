@@ -76,6 +76,30 @@ CREATE TABLE IF NOT EXISTS movimentacoes_estoque (
 );
 
 -- ============================================================
+-- MIGRAÇÃO: tabela de fiados
+-- Execute no SQL Editor do Supabase
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS fiados (
+  id UUID DEFAULT uuid_generate_v4() PRIMARY KEY,
+  cliente_nome TEXT NOT NULL,
+  produto_nome TEXT,
+  quantidade INTEGER NOT NULL DEFAULT 1,
+  valor_total NUMERIC(10,2) NOT NULL DEFAULT 0,
+  venda_id UUID REFERENCES vendas(id) ON DELETE SET NULL,
+  status TEXT NOT NULL DEFAULT 'pendente', -- 'pendente' ou 'pago'
+  pago_em TIMESTAMPTZ,
+  observacao TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+ALTER TABLE fiados DISABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, UPDATE, DELETE ON fiados TO anon;
+GRANT SELECT, INSERT, UPDATE, DELETE ON fiados TO authenticated;
+
+ALTER PUBLICATION supabase_realtime ADD TABLE fiados;
+
+-- ============================================================
 -- MIGRAÇÃO: tabela de clientes
 -- Execute no SQL Editor do Supabase
 -- ============================================================

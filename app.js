@@ -218,7 +218,24 @@ btnRegistrar?.addEventListener('click', async () => {
       }]),
     ]);
 
-    // ── 5. Registrar/atualizar cliente ────────────────────────
+    // ── 5. Registrar fiado se necessário ───────────────────
+    if (formaPagamentoEl.value === 'fiado') {
+      try {
+        await client.from('fiados').insert([{
+          cliente_nome:  clienteNome,
+          produto_nome:  selectedProduct.nome,
+          quantidade:    qty,
+          valor_total:   total,
+          venda_id:      vendaData.id,
+          status:        'pendente',
+          observacao:    obsVendaEl?.value || '',
+        }]);
+      } catch (e) {
+        console.warn('Erro ao registrar fiado:', e);
+      }
+    }
+
+    // ── 6. Registrar/atualizar cliente ────────────────────────
     const nomeCliente = clienteNome.trim();
     if (nomeCliente && nomeCliente !== 'Cliente balcão') {
       try {
